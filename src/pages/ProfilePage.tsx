@@ -19,12 +19,14 @@ function fmtDate(d: string) {
 }
 
 const ADMIN_LINKS = [
-  { to: '/admin/queue', icon: <LayoutDashboard size={15} />, label: 'Approval Queue',    desc: 'Review pending uploads & trigger AI summaries' },
-  { to: '/admin/users', icon: <Users size={15} />,           label: 'User Moderation',   desc: 'Warn, block, unblock students' },
-  { to: '/admin/stats', icon: <BarChart2 size={15} />,       label: 'Platform Stats',    desc: 'Live DAU, top materials, downloads' },
-  { to: '/leaderboard', icon: <RefreshCw size={15} />,       label: 'Reset Semester',    desc: 'Archive standings & reset leader points' },
-  { to: '/about',       icon: <Info size={15} />,            label: 'About Page',        desc: 'Top contributors & your bio' },
+  { to: '/admin/queue', icon: <LayoutDashboard size={15} />, label: 'Approval Queue',  desc: 'Review pending uploads & trigger AI summaries' },
+  { to: '/admin/users', icon: <Users size={15} />,           label: 'User Moderation', desc: 'Warn, block, unblock students' },
+  { to: '/admin/stats', icon: <BarChart2 size={15} />,       label: 'Platform Stats',  desc: 'Live DAU, top materials, downloads' },
+  { to: '/leaderboard', icon: <RefreshCw size={15} />,       label: 'Reset Semester',  desc: 'Archive standings & reset leader points' },
+  { to: '/about',       icon: <Info size={15} />,            label: 'About Page',      desc: 'Top contributors & your bio' },
 ]
+
+type TabType = 'bookmarks' | 'history' | 'notifications' | 'karma' | 'admin'
 
 export default function ProfilePage() {
   const { handle } = useParams()
@@ -32,17 +34,13 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const isOwn = !handle
 
-  const [profile, setProfile]     = useState<Profile | null>(null)
-  const [quizHistory, setQHistory] = useState<QuizHistory[]>([])
-  const [bookmarks, setBookmarks]  = useState<BookmarkItem[]>([])
-  const [notifs, setNotifs]        = useState<Notif[]>([])
-  const [karmaLog, setKarmaLog]    = useState<KarmaEntry[]>([])
-  const [loading, setLoading]      = useState(true)
-
-  // Admin gets extra tabs; regular users get 3
-  type AdminTab = 'bookmarks' | 'history' | 'notifications' | 'karma' | 'admin'
-  type UserTab  = 'bookmarks' | 'history' | 'notifications'
-  const [tab, setTab] = useState<AdminTab | UserTab>('bookmarks')
+  const [profile, setProfile]   = useState<Profile | null>(null)
+  const [quizHistory, setQH]    = useState<QuizHistory[]>([])
+  const [bookmarks, setBks]     = useState<BookmarkItem[]>([])
+  const [notifs, setNotifs]     = useState<Notif[]>([])
+  const [karmaLog, setKarmaLog] = useState<KarmaEntry[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [tab, setTab]           = useState<TabType>('bookmarks')
 
   useEffect(() => {
     const load = async () => {
@@ -50,26 +48,23 @@ export default function ProfilePage() {
       const pid = isOwn ? user?.id : null
       if (!pid) { setLoading(false); return }
 
-      const promises: Promise<any>[] = [
-        supabase.from('profiles').select('*').eq('id', pid).single(),
-        supabase.from('quiz_attempts').select('id,percentage,created_at,quizzes(title)').eq('user_id', pid).order('created_at', { ascending: false }).limit(10),
-        supabase.from('bookmarks').select('id,material_id,created_at,materials(title,type)').eq('user_id', pid).order('created_at', { ascending: false }).limit(20),
-        supabase.from('notifications').select('id,title,body,read,created_at,link').eq('user_id', pid).order('created_at', { ascending: false }).limit(30),
-      ]
-
-      // Admin also loads karma log
-      if (isAdmin && isOwn) {
-        promises.push(supabase.from('karma_log').select('id,action,points,created_at').eq('user_id', pid).order('created_at', { ascending: false }).limit(20))
-      }
-
-      const results = await Promise.all(promises)
-      const [{ data: p }, { data: attempts }, { data: bks }, { data: nots }] = results
+      // Sequential fetches — avoids Promise.all type mismatch with Supabase builders
+      const { data: p }        = await supabase.from('profiles').select('*').eq('id', pid).single()
+      const { data: attempts } = await supabase.from('quiz_attempts').select('id,percentage,created_at,quizzes(title)').eq('user_id', pid).order('created_at', { ascending: false }).limit(10)
+      const { data: bks }      = await supabase.from('bookmarks').select('id,material_id,created_at,materials(title,type)').eq('user_id', pid).order('created_at', { ascending: false }).limit(20)
+      const { data: nots }     = await supabase.from('notifications').select('id,title,body,read,created_at,link').eq('user_id', pid).order('created_at', { ascending: false }).limit(30)
 
       setProfile(p as Profile)
-      setQHistory((attempts as unknown as QuizHistory[]) ?? [])
-      setBookmarks((bks as unknown as BookmarkItem[]) ?? [])
-      setNotifs((nots as Notif[]) ?? [])
-      if (results[4]) setKarmaLog((results[4].data as KarmaEntry[]) ?? [])
+      setQH((attempts as unknown as QuizHistory[]) ?? [])
+      setBks((bks as unknown as BookmarkItem[]) ?? [])
+      setNotifs((nots as unknown as Notif[]) ?? [])
+
+      // Karma log — only for admin's own profile
+      if (isAdmin && isOwn) {
+        const { data: klog } = await supabase.from('karma_log').select('id,action,points,created_at').eq('user_id', pid).order('created_at', { ascending: false }).limit(20)
+        setKarmaLog((klog as unknown as KarmaEntry[]) ?? [])
+      }
+
       setLoading(false)
     }
     load()
@@ -106,16 +101,16 @@ export default function ProfilePage() {
   const initials = dp?.full_name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
   const unread = notifs.filter(n => !n.read).length
 
-  const tabs = isAdmin && isOwn
-    ? ['bookmarks', 'history', 'notifications', 'karma', 'admin'] as AdminTab[]
-    : ['bookmarks', 'history', 'notifications'] as UserTab[]
+  const tabs: TabType[] = isAdmin && isOwn
+    ? ['bookmarks', 'history', 'notifications', 'karma', 'admin']
+    : ['bookmarks', 'history', 'notifications']
 
-  const TAB_LABELS: Record<string, string> = {
-    bookmarks: '🔖 Bookmarks',
-    history:   '📊 Quiz History',
+  const TAB_LABELS: Record<TabType, string> = {
+    bookmarks:     '🔖 Bookmarks',
+    history:       '📊 Quiz History',
     notifications: `🔔 Notifications${unread > 0 ? ` (${unread})` : ''}`,
-    karma:     '⭐ Karma Log',
-    admin:     '⚡ Admin Controls',
+    karma:         '⭐ Karma Log',
+    admin:         '⚡ Admin Controls',
   }
 
   return (
@@ -124,12 +119,10 @@ export default function ProfilePage() {
       <section style={{ background: 'linear-gradient(135deg, var(--surface-mid) 0%, var(--primary-light) 100%)', paddingBlock: 'var(--sp-10)' }}>
         <div className="container">
           <div style={{ display: 'flex', gap: 'var(--sp-8)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {/* Avatar */}
             <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary),#7b8fff)', color: 'white', fontWeight: 800, fontSize: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '4px solid white', boxShadow: 'var(--shadow-float)', overflow: 'hidden', flexShrink: 0 }}>
-              {dp?.avatar_url ? <img src={dp.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials}
+              {dp?.avatar_url ? <img src={dp.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={dp.full_name} /> : initials}
             </div>
 
-            {/* Info */}
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', marginBottom: 'var(--sp-2)', flexWrap: 'wrap' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 800 }}>{dp?.full_name}</h1>
@@ -139,18 +132,21 @@ export default function ProfilePage() {
                 {dp?.year ? `${dp.year === 1 ? '1st' : '2nd'} Year` : ''}{dp?.branch ? ` · ${dp.branch}` : ''} · JSS University Noida
                 {dp?.roll_number && <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{dp.roll_number}</span>}
               </div>
+
               <div style={{ display: 'flex', gap: 'var(--sp-6)', flexWrap: 'wrap' }}>
                 {[
-                  { icon: <Star size={16} color="#f7dd7d" />,         label: 'Karma (permanent)',     value: dp?.karma_points ?? 0 },
-                  { icon: <Trophy size={16} color="var(--primary)" />, label: 'Leader Pts (this sem)', value: dpAny?.leader_points ?? 0 },
-                  { icon: <BookOpen size={16} color="#10b981" />,      label: 'Bookmarks',             value: bookmarks.length },
-                  { icon: <Eye size={16} color="#f59e0b" />,           label: 'Quizzes Taken',         value: quizHistory.length },
+                  { icon: <Star size={16} color="#f7dd7d" />,          label: 'Karma',          sublabel: 'permanent',    value: dp?.karma_points ?? 0 },
+                  { icon: <Trophy size={16} color="var(--primary)" />,  label: 'Leader Pts',     sublabel: 'this sem',     value: dpAny?.leader_points ?? 0 },
+                  { icon: <BookOpen size={16} color="#10b981" />,       label: 'Bookmarks',      sublabel: '',             value: bookmarks.length },
+                  { icon: <Eye size={16} color="#f59e0b" />,            label: 'Quizzes Taken',  sublabel: '',             value: quizHistory.length },
                 ].map((s, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
                     {s.icon}
                     <div>
                       <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 18 }}>{s.value}</div>
-                      <div style={{ fontSize: 11, color: 'var(--on-surface-muted)' }}>{s.label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--on-surface-muted)' }}>
+                        {s.label}{s.sublabel ? ` · ${s.sublabel}` : ''}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -162,7 +158,9 @@ export default function ProfilePage() {
                 <button className="btn btn-ghost btn-sm" onClick={toggleAnon}>
                   {dpAny?.anonymous_mode ? '👤 Go Public' : '🎭 Go Anonymous'}
                 </button>
-                <button className="btn btn-ghost btn-sm" onClick={signOut}><LogOut size={15} /> Sign Out</button>
+                <button className="btn btn-ghost btn-sm" onClick={signOut}>
+                  <LogOut size={15} /> Sign Out
+                </button>
               </div>
             )}
           </div>
@@ -189,9 +187,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Content */}
       <div className="container" style={{ paddingBlock: 'var(--sp-8)' }}>
         {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 64, borderRadius: 'var(--radius-md)', marginBottom: 'var(--sp-3)' }} />)
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 64, borderRadius: 'var(--radius-md)', marginBottom: 'var(--sp-3)' }} />
+          ))
         ) : tab === 'admin' && isAdmin ? (
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 'var(--sp-2)' }}>⚡ Admin Quick Controls</h2>
@@ -199,9 +200,9 @@ export default function ProfilePage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 'var(--sp-4)', marginBottom: 'var(--sp-8)' }}>
               {ADMIN_LINKS.map(l => (
                 <Link key={l.to} to={l.to} style={{ textDecoration: 'none' }}>
-                  <div className="glass-card" style={{ padding: 'var(--sp-5)', height: '100%' }}
-                    onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-3px)')}
-                    onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}>
+                  <div className="glass-card" style={{ padding: 'var(--sp-5)', height: '100%', cursor: 'pointer', transition: 'transform 0.2s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)' }}>
                     <div style={{ color: 'var(--primary)', marginBottom: 'var(--sp-3)' }}>{l.icon}</div>
                     <div style={{ fontWeight: 700, marginBottom: 4 }}>{l.label}</div>
                     <div style={{ fontSize: 13, color: 'var(--on-surface-muted)' }}>{l.desc}</div>
@@ -210,30 +211,31 @@ export default function ProfilePage() {
               ))}
             </div>
             <div style={{ padding: 'var(--sp-5)', background: 'var(--primary-light)', borderRadius: 'var(--radius-lg)', borderLeft: '4px solid var(--primary)' }}>
-              <div style={{ fontWeight: 700, marginBottom: 'var(--sp-3)' }}>📌 Admin Rules</div>
+              <div style={{ fontWeight: 700, marginBottom: 'var(--sp-3)' }}>📌 Admin Reminders</div>
               <ul style={{ fontSize: 14, color: 'var(--on-surface-muted)', lineHeight: 2.2, paddingLeft: 'var(--sp-5)' }}>
-                <li><strong>Karma points</strong> = permanent, never reset. Approve content → student earns +10.</li>
+                <li><strong>Karma points</strong> = permanent. Approve content → student gets +10. Never resets.</li>
                 <li><strong>Leader points</strong> = semester-based. Go to Leaderboard → Reset Semester to archive + zero out.</li>
                 <li>Admin uploads & quiz attempts = <strong>zero points awarded</strong> (fair play).</li>
-                <li>1st Year subjects are fully open for admin to upload content.</li>
-                <li>Archive old materials from Subject page when semester ends.</li>
+                <li>1st Year subjects are fully open — upload content for any subject.</li>
+                <li>Both <code>kartikkartikgupta04@gmail.com</code> and <code>00guptakartik2006@gmail.com</code> are admin.</li>
               </ul>
             </div>
           </div>
+
         ) : tab === 'karma' ? (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', marginBottom: 'var(--sp-6)' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 32, color: '#f7dd7d' }}>{dp?.karma_points ?? 0}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: 40, color: '#f7dd7d' }}>{dp?.karma_points ?? 0}</div>
               <div>
-                <div style={{ fontWeight: 700 }}>Total Karma Points</div>
-                <div style={{ fontSize: 13, color: 'var(--on-surface-muted)' }}>Permanent — never resets</div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>Total Karma Points</div>
+                <div style={{ fontSize: 13, color: 'var(--on-surface-muted)' }}>Permanent — never resets, ever</div>
               </div>
             </div>
             {karmaLog.length === 0 ? (
               <div className="glass-card" style={{ padding: 'var(--sp-10)', textAlign: 'center' }}>
                 <div style={{ fontSize: 48 }}>⭐</div>
                 <h3 style={{ marginTop: 'var(--sp-4)' }}>No karma earned yet</h3>
-                <p style={{ color: 'var(--on-surface-muted)', marginTop: 'var(--sp-2)' }}>Upload quality content and get it approved.</p>
+                <p style={{ color: 'var(--on-surface-muted)', marginTop: 'var(--sp-2)' }}>Upload quality content and get it approved to earn karma.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
@@ -249,6 +251,7 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+
         ) : tab === 'bookmarks' ? (
           bookmarks.length === 0 ? (
             <div className="glass-card" style={{ padding: 'var(--sp-12)', textAlign: 'center' }}>
@@ -268,6 +271,7 @@ export default function ProfilePage() {
               ))}
             </div>
           )
+
         ) : tab === 'history' ? (
           quizHistory.length === 0 ? (
             <div className="glass-card" style={{ padding: 'var(--sp-12)', textAlign: 'center' }}>
@@ -278,7 +282,9 @@ export default function ProfilePage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
               {quizHistory.map(h => (
                 <div key={h.id} className="glass-card" style={{ padding: 'var(--sp-4)', display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 700, color: h.percentage >= 80 ? '#16a34a' : h.percentage >= 60 ? 'var(--warn)' : 'var(--danger)', minWidth: 64, textAlign: 'center' }}>{Math.round(h.percentage)}%</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 700, color: h.percentage >= 80 ? '#16a34a' : h.percentage >= 60 ? 'var(--warn)' : 'var(--danger)', minWidth: 64, textAlign: 'center' }}>
+                    {Math.round(h.percentage)}%
+                  </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{(h.quizzes as any)?.title ?? 'Quiz'}</div>
                     <div style={{ fontSize: 13, color: 'var(--on-surface-muted)' }}>{fmtDate(h.created_at)}</div>
@@ -290,8 +296,9 @@ export default function ProfilePage() {
               ))}
             </div>
           )
+
         ) : (
-          // Notifications
+          // Notifications tab
           notifs.length === 0 ? (
             <div className="glass-card" style={{ padding: 'var(--sp-12)', textAlign: 'center' }}>
               <div style={{ fontSize: 48 }}>🔔</div>

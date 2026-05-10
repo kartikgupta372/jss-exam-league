@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { BookOpen, Bookmark, Download, ExternalLink, Sparkles, Trophy, Plus, FileText, Video, ClipboardList, Eye, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -26,7 +27,7 @@ const TABS = [
 const TYPE_MAP: Record<string, string> = { notes: 'full_notes', summaries: 'summary', tests: 'unit_test', videos: 'youtube' }
 const TYPE_BADGE: Record<string, string> = { full_notes: 'badge-primary', summary: 'badge-ai', unit_test: 'badge-amber', youtube: 'badge-red' }
 const TYPE_LABEL: Record<string, string> = { full_notes: 'Full Notes', summary: 'AI Summary', unit_test: 'Unit Test', youtube: 'Video' }
-const STATUS_ICON: Record<string, React.ReactNode> = {
+const STATUS_ICON: Record<string, ReactNode> = {
   approved: <CheckCircle size={12} color="#16a34a" />,
   pending:  <Clock size={12} color="var(--warn)" />,
   rejected: <XCircle size={12} color="var(--danger)" />,
@@ -57,14 +58,14 @@ export default function SubjectPage() {
 
   const { data: doubtsData, isLoading: loadingDoubts } = useDoubts(id)
 
-  const materials = (materialsData as unknown as Material[]) || []
-  const doubts = (doubtsData as unknown as Doubt[])?.slice(0, 3) || []
+  const materials = (materialsData as unknown as Material[]) ?? []
+  const doubts = (doubtsData as unknown as Doubt[])?.slice(0, 3) ?? []
   const loading = loadingMaterials || loadingDoubts
 
   useEffect(() => {
     if (!user) return
     supabase.from('bookmarks').select('material_id').eq('user_id', user.id).then(({ data }) => {
-      if (data) setBookmarked(new Set(data.map(b => b.material_id)))
+      if (data) setBookmarked(new Set(data.map((b: { material_id: string }) => b.material_id)))
     })
   }, [user])
 
@@ -81,26 +82,26 @@ export default function SubjectPage() {
   }
 
   const approveFromPage = async (matId: string) => {
-    await supabase.from('materials').update({ status: 'approved', approved_by: user?.id, approved_at: new Date().toISOString() }).eq('id', matId)
-    // Reload by invalidating — simple page refresh trigger
+    await supabase.from('materials').update({
+      status: 'approved',
+      approved_by: user?.id,
+      approved_at: new Date().toISOString()
+    }).eq('id', matId)
     window.location.reload()
   }
 
-  // For filtering: admin sees all by type, student sees approved by type
-  const filtered = materials.filter(m => {
-    const matchesType = m.type === TYPE_MAP[activeTab]
-    return matchesType
-  })
-
+  const filtered = materials.filter((m: Material) => m.type === TYPE_MAP[activeTab])
   const counts = Object.fromEntries(
-    Object.entries(TYPE_MAP).map(([tab, type]) => [tab, materials.filter(m => m.type === type).length])
+    Object.entries(TYPE_MAP).map(([tab, type]) => [tab, materials.filter((m: Material) => m.type === type).length])
   )
+
+  const subjectAny = subject as any
 
   return (
     <AnimatedPage>
       <PageMeta
-        title={subject ? `${(subject as any).name} – Notes, Quizzes & Doubts` : 'Subject'}
-        description={subject ? `Study ${(subject as any).name} (${(subject as any).code}) with AI-summarised notes, quizzes, and a live doubt forum on JSS Exam League.` : ''}
+        title={subject ? `${subjectAny.name} – Notes, Quizzes & Doubts` : 'Subject'}
+        description={subject ? `Study ${subjectAny.name} (${subjectAny.code}) with AI-summarised notes, quizzes, and a live doubt forum on JSS Exam League.` : ''}
         path={`/year/${year}/subject/${id}`}
       />
       <div>
@@ -111,10 +112,12 @@ export default function SubjectPage() {
               <div style={{ fontSize: 12, color: 'var(--on-surface-muted)', marginBottom: 4 }}>
                 <Link to={`/year/${year}`} style={{ textDecoration: 'none', color: 'var(--primary)' }}>
                   {year === '2' ? '2nd Year' : '1st Year'}
-                </Link> / {(subject as any)?.code}
-                {isAdmin && <span className="badge badge-admin" style={{ marginLeft: 8, fontSize: 10 }}>⚡ Admin View — All Materials</span>}
+                </Link> / {subjectAny?.code}
+                {isAdmin && (
+                  <span className="badge badge-admin" style={{ marginLeft: 8, fontSize: 10 }}>⚡ Admin — All Materials</span>
+                )}
               </div>
-              <h1 style={{ fontSize: 22, fontWeight: 800 }}>{(subject as any)?.name ?? 'Loading…'}</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 800 }}>{subjectAny?.name ?? 'Loading…'}</h1>
             </div>
             <Link to="/upload" className="btn btn-primary btn-sm"><Plus size={15} /> Upload</Link>
           </div>
@@ -131,11 +134,13 @@ export default function SubjectPage() {
           </div>
         </div>
 
-        {/* Main content */}
+        {/* Main grid */}
         <div className="container" style={{ paddingTop: 'var(--sp-6)', paddingBottom: 'var(--sp-10)', display: 'grid', gridTemplateColumns: '1fr 300px', gap: 'var(--sp-8)', alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 64, borderRadius: 'var(--radius-md)' }} />)
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="skeleton" style={{ height: 64, borderRadius: 'var(--radius-md)' }} />
+              ))
             ) : filtered.length === 0 ? (
               <div className="glass-card" style={{ padding: 'var(--sp-12)', textAlign: 'center' }}>
                 <div style={{ fontSize: 48, marginBottom: 'var(--sp-4)' }}>📭</div>
@@ -145,36 +150,38 @@ export default function SubjectPage() {
                 </p>
                 <Link to="/upload" className="btn btn-primary">Upload Material</Link>
               </div>
-            ) : filtered.map(m => (
-              <div key={m.id} className="material-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 'var(--sp-2)', cursor: 'default' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', width: '100%' }}>
+            ) : filtered.map((m: Material) => (
+              <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', padding: 'var(--sp-4)', borderRadius: 'var(--radius-md)', background: 'var(--surface-card)', border: '1px solid rgba(255,255,255,0.5)', backdropFilter: 'blur(12px)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
                   <span className={`badge ${TYPE_BADGE[m.type]}`}>
                     {m.ai_generated && <Sparkles size={11} />} {TYPE_LABEL[m.type]}
                   </span>
-                  {/* Admin: show status badge */}
                   {isAdmin && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: m.status === 'approved' ? '#16a34a' : m.status === 'rejected' ? 'var(--danger)' : 'var(--warn)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: m.status === 'approved' ? '#16a34a' : m.status === 'rejected' ? 'var(--danger)' : 'var(--warn)', fontWeight: 600 }}>
                       {STATUS_ICON[m.status]} {m.status}
                     </span>
                   )}
-                  <div className="material-row-meta" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-                    <span style={{ fontSize: 12, color: 'var(--on-surface-muted)' }}>{(m.profiles as any)?.full_name ?? 'Unknown'}</span>
-                    <span style={{ fontSize: 12, color: 'var(--on-surface-muted)' }}>· {fmtDate(m.created_at)}</span>
-                    {/* Bookmark — only for approved */}
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', fontSize: 12, color: 'var(--on-surface-muted)' }}>
+                    <span>{(m.profiles as any)?.full_name ?? 'Unknown'}</span>
+                    <span>· {fmtDate(m.created_at)}</span>
                     {m.status === 'approved' && (
-                      <button onClick={() => toggleBookmark(m.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: bookmarked.has(m.id) ? 'var(--primary)' : 'var(--on-surface-muted)', display: 'flex' }}>
+                      <button onClick={() => toggleBookmark(m.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: bookmarked.has(m.id) ? 'var(--primary)' : 'var(--on-surface-muted)', display: 'flex', padding: 0 }}>
                         <Bookmark size={16} fill={bookmarked.has(m.id) ? 'var(--primary)' : 'none'} />
                       </button>
                     )}
-                    {/* Admin: quick-approve pending */}
+                    {m.status === 'approved' && (
+                      <a href="#" style={{ color: 'var(--on-surface-muted)', display: 'flex' }}>
+                        <Download size={16} />
+                      </a>
+                    )}
                     {isAdmin && m.status === 'pending' && (
-                      <button onClick={() => approveFromPage(m.id)} className="btn btn-sm" style={{ background: '#dcffe8', color: '#16a34a', border: 'none', padding: '3px 10px', fontSize: 11 }}>
+                      <button onClick={() => approveFromPage(m.id)} className="btn btn-sm" style={{ background: '#dcffe8', color: '#16a34a', border: 'none', padding: '3px 10px', fontSize: 11, borderRadius: 'var(--radius-full)' }}>
                         <CheckCircle size={11} /> Approve
                       </button>
                     )}
                   </div>
                 </div>
-                <Link to={`/material/${m.id}`} className="material-row-title" style={{ textDecoration: 'none', color: 'inherit', fontSize: 14, fontWeight: 600 }}>
+                <Link to={`/material/${m.id}`} style={{ textDecoration: 'none', color: 'inherit', fontSize: 14, fontWeight: 600 }}>
                   {m.title}
                 </Link>
               </div>
@@ -188,7 +195,7 @@ export default function SubjectPage() {
                 <Trophy size={16} color="var(--primary)" /> Quick Quiz
               </div>
               <p style={{ fontSize: 13, color: 'var(--on-surface-muted)', marginBottom: 'var(--sp-4)' }}>
-                Test your {(subject as any)?.name} knowledge.
+                Test your {subjectAny?.name} knowledge.
               </p>
               <Link to="/leaderboard" className="btn btn-gold" style={{ width: '100%', justifyContent: 'center' }}>
                 Start Quiz ⚡
@@ -201,7 +208,7 @@ export default function SubjectPage() {
               </div>
               {doubts.length === 0 ? (
                 <div style={{ fontSize: 13, color: 'var(--on-surface-muted)' }}>No open doubts yet.</div>
-              ) : doubts.map(d => (
+              ) : doubts.map((d: Doubt) => (
                 <Link key={d.id} to={`/doubts/${d.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>{d.title}</div>
                   <div style={{ fontSize: 12, color: 'var(--primary)' }}>{(d.doubt_replies as any)?.[0]?.count ?? 0} replies</div>
