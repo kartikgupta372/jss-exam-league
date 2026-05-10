@@ -1,0 +1,191 @@
+// src/pages/SubjectPage.tsx — real materials from Supabase
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { BookOpen, Bookmark, Download, ExternalLink, Sparkles, Trophy, Plus, FileText, Video, ClipboardList } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
+import PageMeta from '@/components/ui/PageMeta'
+import AnimatedPage from '@/components/ui/AnimatedPage'
+
+import { useSubject } from '@/hooks/useSubjects'
+import { useMaterials } from '@/hooks/useMaterials'
+import { useDoubts } from '@/hooks/useDoubts'
+
+interface Material {
+  id: string; title: string; type: string; ai_generated: boolean
+  created_at: string; status: string
+  profiles: { full_name: string } | null
+}
+
+interface Doubt { id: string; title: string; doubt_replies: { count: number }[] }
+
+const TABS = [
+  { key: 'notes',     label: 'Notes',      icon: <FileText size={15} /> },
+  { key: 'summaries', label: 'Summaries',  icon: <Sparkles size={15} /> },
+  { key: 'tests',     label: 'Unit Tests', icon: <ClipboardList size={15} /> },
+  { key: 'videos',    label: 'Videos',     icon: <Video size={15} /> },
+]
+
+const TYPE_MAP: Record<string, string> = { notes: 'full_notes', summaries: 'summary', tests: 'unit_test', videos: 'youtube' }
+const TYPE_BADGE: Record<string, string> = { full_notes: 'badge-primary', summary: 'badge-ai', unit_test: 'badge-amber', youtube: 'badge-red' }
+const TYPE_LABEL: Record<string, string> = { full_notes: 'Full Notes', summary: 'AI Summary', unit_test: 'Unit Test', youtube: 'Video' }
+
+function fmtDate(d: string) {
+  const diff = Math.floor((Date.now() - new Date(d).getTime()) / 86400000)
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Yesterday'
+  if (diff < 7)  return `${diff}d ago`
+  return `${Math.floor(diff/7)}w ago`
+}
+
+export default function SubjectPage() {
+  const { id = '', year = '2' } = useParams()
+  const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState('notes')
+  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set())
+
+  const { data: subject, isLoading: loadingSubject } = useSubject(id)
+  const { data: materialsData, isLoading: loadingMaterials } = useMaterials(id, 'approved')
+  const { data: doubtsData, isLoading: loadingDoubts } = useDoubts(id)
+
+  const materials = (materialsData as unknown as Material[]) || []
+  const doubts = (doubtsData as unknown as Doubt[])?.slice(0, 3) || []
+  const loading = loadingSubject || loadingMaterials || loadingDoubts
+
+  useEffect(() => {
+    const loadBookmarks = async () => {
+      if (user) {
+        const { data: bks } = await supabase.from('bookmarks').select('material_id').eq('user_id', user.id)
+        if (bks) setBookmarked(new Set(bks.map(b => b.material_id)))
+      }
+    }
+    loadBookmarks()
+  }, [user])
+
+  const toggleBookmark = async (materialId: string) => {
+    if (!user) return
+    const has = bookmarked.has(materialId)
+    if (has) {
+      await supabase.from('bookmarks').delete().eq('user_id', user.id).eq('material_id', materialId)
+      setBookmarked(prev => { const s = new Set(prev); s.delete(materialId); return s })
+    } else {
+      await supabase.from('bookmarks').insert({ user_id: user.id, material_id: materialId })
+      setBookmarked(prev => new Set([...prev, materialId]))
+    }
+  }
+
+  const filtered = materials.filter(m => m.type === TYPE_MAP[activeTab])
+  const counts = Object.fromEntries(
+    Object.entries(TYPE_MAP).map(([tab, type]) => [tab, materials.filter(m => m.type === type).length])
+  )
+
+  return (
+    <AnimatedPage>
+    <PageMeta
+      title={subject ? `${(subject as any).name} — Notes, Quizzes & Doubts` : 'Subject'}
+      description={subject ? `Study ${(subject as any).name} (${(subject as any).code}) with AI-summarised notes, quizzes, and a live doubt forum on JSS Exam League.` : ''}
+      path={`/year/${year}/subject/${id}`}
+    />
+    <div>
+      {/* Sticky header */}
+      <div style={{ background: 'var(--surface-mid)', borderBottom: '1px solid var(--outline-variant)', position: 'sticky', top: 64, zIndex: 50 }}>
+        <div className="container" style={{ paddingBlock: 'var(--sp-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--on-surface-muted)', marginBottom: 4 }}>
+              <Link to={`/year/${year}`} style={{ textDecoration: 'none', color: 'var(--primary)' }}>
+                {year === '2' ? '2nd Year' : '1st Year'}
+              </Link> / {subject?.code}
+            </div>
+            <h1 style={{ fontSize: 22, fontWeight: 800 }}>{subject?.name ?? 'Loading…'}</h1>
+          </div>
+          <Link to="/upload" className="btn btn-primary btn-sm"><Plus size={15} /> Upload</Link>
+        </div>
+
+        {/* Tabs */}
+        <div className="container" style={{ display: 'flex', gap: 4 }}>
+          {TABS.map(t => (
+            <button key={t.key} onClick={() => setActiveTab(t.key)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 'var(--radius-md) var(--radius-md) 0 0', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, background: activeTab === t.key ? 'var(--bg)' : 'transparent', color: activeTab === t.key ? 'var(--primary)' : 'var(--on-surface-muted)', borderBottom: activeTab === t.key ? '2px solid var(--primary)' : '2px solid transparent', transition: 'all 0.15s' }}>
+              {t.icon} {t.label}
+              <span className="badge badge-primary" style={{ fontSize: 11 }}>{counts[t.key] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="container" style={{ paddingTop: 'var(--sp-6)', paddingBottom: 'var(--sp-10)', display: 'grid', gridTemplateColumns: '1fr 300px', gap: 'var(--sp-8)', alignItems: 'start' }}>
+
+        {/* Material list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 64, borderRadius: 'var(--radius-md)' }} />)
+          ) : filtered.length === 0 ? (
+            <div className="glass-card" style={{ padding: 'var(--sp-12)', textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 'var(--sp-4)' }}>📭</div>
+              <h3 style={{ marginBottom: 'var(--sp-2)' }}>Nothing here yet</h3>
+              <p style={{ color: 'var(--on-surface-muted)', marginBottom: 'var(--sp-4)' }}>First to upload gets +20 bonus karma!</p>
+              <Link to="/upload" className="btn btn-primary">Upload Material</Link>
+            </div>
+          ) : filtered.map(m => (
+            <div key={m.id} className="material-row" style={{ cursor: 'default' }}>
+              <span className={`badge ${TYPE_BADGE[m.type]}`}>
+                {m.ai_generated && <Sparkles size={11} />} {TYPE_LABEL[m.type]}
+              </span>
+              <Link to={`/material/${m.id}`} className="material-row-title" style={{ textDecoration: 'none', color: 'inherit' }}>
+                {m.title}
+              </Link>
+              <div className="material-row-meta">
+                <span>{(m.profiles as any)?.full_name ?? 'Unknown'}</span>
+                <span>·</span>
+                <span>{fmtDate(m.created_at)}</span>
+                <button onClick={() => toggleBookmark(m.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: bookmarked.has(m.id) ? 'var(--primary)' : 'var(--on-surface-muted)', display: 'flex' }} aria-label="Bookmark">
+                  <Bookmark size={16} fill={bookmarked.has(m.id) ? 'var(--primary)' : 'none'} />
+                </button>
+                <a href={m.type !== 'youtube' ? '#' : m.id} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--on-surface-muted)', display: 'flex' }} aria-label="Download">
+                  <Download size={16} />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Sidebar */}
+        <aside className="sidebar-col" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)', position: 'sticky', top: 160 }}>
+          <div className="glass-card" style={{ padding: 'var(--sp-5)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-4)', fontWeight: 700 }}>
+              <Trophy size={16} color="var(--primary)" /> Quick Quiz
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--on-surface-muted)', marginBottom: 'var(--sp-4)' }}>
+              Test your {subject?.name} knowledge right now.
+            </p>
+            <Link to="/leaderboard" className="btn btn-gold" style={{ width: '100%', justifyContent: 'center' }}>
+              Start Quiz ⚡
+            </Link>
+          </div>
+
+          <div className="glass-card" style={{ padding: 'var(--sp-5)' }}>
+            <div style={{ fontWeight: 700, marginBottom: 'var(--sp-4)', display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+              <BookOpen size={16} color="var(--primary)" /> Top Doubts
+            </div>
+            {doubts.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--on-surface-muted)' }}>No open doubts yet. Be the first!</div>
+            ) : doubts.map(d => (
+              <Link key={d.id} to={`/doubts/${d.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>{d.title}</div>
+                <div style={{ fontSize: 12, color: 'var(--primary)' }}>{(d.doubt_replies as any)?.[0]?.count ?? 0} replies</div>
+                <div className="divider" />
+              </Link>
+            ))}
+            <Link to="/doubts" className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: 'var(--sp-2)' }}>
+              View all doubts <ExternalLink size={13} />
+            </Link>
+          </div>
+        </aside>
+      </div>
+
+      <Link to="/upload" className="fab" aria-label="Upload"><Plus size={22} /></Link>
+    </div>
+    </AnimatedPage>
+  )
+}
