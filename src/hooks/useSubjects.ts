@@ -35,18 +35,22 @@ export function useSubjects(year?: number) {
   })
 }
 
-export function useSubject(id: string) {
+export function useSubject(idOrCode: string) {
   return useQuery({
-    queryKey: ['subject', id],
+    queryKey: ['subject', idOrCode],
     queryFn: async () => {
+      // Basic UUID regex
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idOrCode)
+      const column = isUuid ? 'id' : 'code'
+      
       const { data, error } = await supabase
         .from('subjects')
         .select('*')
-        .eq('id', id)
+        .eq(column, idOrCode)
         .single()
       if (error) throw error
       return data as Subject
     },
-    enabled: !!id,
+    enabled: !!idOrCode,
   })
 }

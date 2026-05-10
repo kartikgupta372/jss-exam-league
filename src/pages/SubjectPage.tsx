@@ -50,13 +50,14 @@ export default function SubjectPage() {
   const { data: subject } = useSubject(id)
 
   // Admin sees ALL materials (pending, approved, rejected); students see approved only
-  const { data: allMatsData, isLoading: loadingAll } = useAllMaterials(id)
-  const { data: approvedData, isLoading: loadingApproved } = useMaterials(id, 'approved')
+  const subjectId = subject?.id ?? ''
+  const { data: allMatsData, isLoading: loadingAll } = useAllMaterials(subjectId)
+  const { data: approvedData, isLoading: loadingApproved } = useMaterials(subjectId, 'approved')
 
   const materialsData = isAdmin ? allMatsData : approvedData
   const loadingMaterials = isAdmin ? loadingAll : loadingApproved
 
-  const { data: doubtsData, isLoading: loadingDoubts } = useDoubts(id)
+  const { data: doubtsData, isLoading: loadingDoubts } = useDoubts(subjectId)
 
   const materials = (materialsData as unknown as Material[]) ?? []
   const doubts = (doubtsData as unknown as Doubt[])?.slice(0, 3) ?? []

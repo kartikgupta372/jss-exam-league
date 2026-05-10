@@ -149,12 +149,18 @@ export default function LandingPage() {
                 </div>
               </div>
             </Link>
-            <div className="glass-card" style={{ padding:'var(--sp-8)', textAlign:'center', opacity:0.6 }}>
-              <div style={{ fontSize:48, marginBottom:'var(--sp-4)' }}>📚</div>
-              <div style={{ fontSize:22, fontWeight:800, marginBottom:8 }}>1st Year</div>
-              <div style={{ fontSize:14, color:'var(--on-surface-muted)', marginBottom:'var(--sp-4)' }}>Coming soon — Phase 1.5</div>
-              <span className="badge badge-amber">Coming Soon</span>
-            </div>
+            <Link to="/year/1" style={{ textDecoration:'none' }}>
+              <div className="glass-card" style={{ padding:'var(--sp-8)', textAlign:'center', cursor:'pointer', transition:'all 0.2s' }}
+                onMouseEnter={e=>(e.currentTarget.style.transform='translateY(-4px)')}
+                onMouseLeave={e=>(e.currentTarget.style.transform='translateY(0)')}>
+                <div style={{ fontSize:48, marginBottom:'var(--sp-4)' }}>📚</div>
+                <div style={{ fontSize:22, fontWeight:800, marginBottom:8 }}>1st Year</div>
+                <div style={{ fontSize:14, color:'var(--on-surface-muted)', marginBottom:'var(--sp-4)' }}>Live now!</div>
+                <div style={{ display:'flex', justifyContent:'center', gap:'var(--sp-3)' }}>
+                  <span className="badge badge-primary">Open</span>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
       </section>

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 
 export default function NavBar() {
-  const { user, profile, isAdmin, signOut } = useAuth()
+  const { user, profile, isAdmin, isLoading, signOut } = useAuth()
   const [year, setYear] = useState<1|2>(2)
   const [dropOpen, setDropOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -48,11 +48,13 @@ export default function NavBar() {
             <NavLink to="/leaderboard" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Leaderboard</NavLink>
             <NavLink to="/doubts" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Doubts</NavLink>
             <NavLink to="/about" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>About</NavLink>
-            {isAdmin && (
+            {isLoading ? (
+               <div className="skeleton" style={{ width: 60, height: 20, borderRadius: 4 }} />
+            ) : isAdmin ? (
               <NavLink to="/admin/queue" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} style={{ color: 'var(--primary)', fontWeight: 700 }}>
                 ⚡ Admin
               </NavLink>
-            )}
+            ) : null}
           </div>
 
           <div className="navbar-spacer" />
