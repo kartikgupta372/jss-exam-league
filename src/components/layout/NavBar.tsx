@@ -3,9 +3,11 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { Bell, Search, BookOpen, Home, Trophy, HelpCircle, User, LogOut, Settings, LayoutDashboard, Upload } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications'
 
 export default function NavBar() {
   const { user, profile, isAdmin, signOut } = useAuth()
+  useRealtimeNotifications()
   const [year, setYear] = useState<1 | 2>(2)
   const [dropOpen, setDropOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
