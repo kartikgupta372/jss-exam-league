@@ -5,7 +5,7 @@ import { useToast } from '@/context/ToastContext'
 
 export function useRealtimeNotifications() {
   const { user } = useAuth()
-  const { addToast } = useToast()
+  const { toast } = useToast()
 
   useEffect(() => {
     if (!user) return
@@ -25,13 +25,13 @@ export function useRealtimeNotifications() {
           const newNotif = payload.new
           // Trigger a toast based on notification type
           if (newNotif.type === 'karma_award') {
-            addToast(`+10 Karma! ${newNotif.message}`, 'success')
+            toast(`+10 Karma! ${newNotif.message}`, 'success')
           } else if (newNotif.type === 'material_approved') {
-            addToast(`Approved! ${newNotif.message}`, 'success')
+            toast(`Approved! ${newNotif.message}`, 'success')
           } else if (newNotif.type === 'doubt_reply') {
-            addToast(`New Reply: ${newNotif.message}`, 'info')
+            toast(`New Reply: ${newNotif.message}`, 'info')
           } else {
-            addToast(newNotif.message, 'info')
+            toast(newNotif.message, 'info')
           }
         }
       )
@@ -40,5 +40,5 @@ export function useRealtimeNotifications() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user, addToast])
+  }, [user, toast])
 }

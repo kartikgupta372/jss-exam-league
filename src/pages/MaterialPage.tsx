@@ -5,7 +5,6 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useMaterial } from '@/hooks/useMaterials'
 import PageMeta from '@/components/ui/PageMeta'
-import PageMeta from '@/components/ui/PageMeta'
 import AnimatedPage from '@/components/ui/AnimatedPage'
 import { useToast } from '@/context/ToastContext'
 
@@ -23,7 +22,7 @@ export default function MaterialPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { user, isAdmin } = useAuth()
-  const { addToast } = useToast()
+  const { toast } = useToast()
   const [bookmarked, setBookmarked] = useState(false)
   const [generatingQuiz, setGeneratingQuiz] = useState(false)
   const { data: material, isLoading: loading } = useMaterial(id)
@@ -52,7 +51,7 @@ export default function MaterialPage() {
   const generateQuiz = async () => {
     if (!material) return
     setGeneratingQuiz(true)
-    addToast('Generating 5-question quiz using AI...', 'info')
+    toast('Generating 5-question quiz using AI...', 'info')
     
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -63,10 +62,10 @@ export default function MaterialPage() {
       
       if (res.error) throw new Error(res.error.message)
       
-      addToast('✅ Quiz generated successfully!', 'success')
+      toast('✅ Quiz generated successfully!', 'success')
       navigate(`/quiz/${res.data.quiz_id}`)
     } catch (err: any) {
-      addToast(`⚠️ Failed to generate quiz: ${err.message}`, 'error')
+      toast(`⚠️ Failed to generate quiz: ${err.message}`, 'error')
     } finally {
       setGeneratingQuiz(false)
     }
