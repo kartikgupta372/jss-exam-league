@@ -1,4 +1,4 @@
-// src/pages/DoubtsPage.tsx — real Supabase doubts
+﻿// src/pages/DoubtsPage.tsx â€” real Supabase doubts
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Plus, MessageCircle, CheckCircle, Filter, Send, ChevronUp } from 'lucide-react'
@@ -60,7 +60,7 @@ export default function DoubtsPage() {
         setThread(d as unknown as Doubt)
         setReplies((r as unknown as Reply[]) ?? [])
         // Increment view count
-        await supabase.rpc('increment_view_count', { material_id: threadId })
+        await supabase.rpc('increment_doubt_views', { doubt_id: threadId })
       } else {
         let q = supabase.from('doubts').select('id,title,body,status,created_at,view_count,subjects(name),profiles(full_name,avatar_url),doubt_replies(count)').order('created_at', { ascending: false }).limit(50)
         if (subjectFilter) q = q.eq('subject_id', subjectFilter)
@@ -101,7 +101,7 @@ export default function DoubtsPage() {
     <AnimatedPage>
       <PageMeta title="Doubt Thread" description="View and answer student doubts on JSS Exam League." path={`/doubts/${threadId}`} />
       <div className="container" style={{ maxWidth: 780, paddingBlock: 'var(--sp-8)' }}>
-      <Link to="/doubts" style={{ color: 'var(--primary)', fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 'var(--sp-6)' }}>← Back to Doubts</Link>
+      <Link to="/doubts" style={{ color: 'var(--primary)', fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 'var(--sp-6)' }}>â† Back to Doubts</Link>
 
       {loading ? <div className="skeleton" style={{ height: 200, borderRadius: 'var(--radius-lg)' }} /> : thread && (
         <>
@@ -115,7 +115,7 @@ export default function DoubtsPage() {
             <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 'var(--sp-4)', lineHeight: 1.3 }}>{thread.title}</h1>
             <p style={{ fontSize: 15, lineHeight: 1.7, marginBottom: 'var(--sp-5)' }}>{thread.body}</p>
             <div style={{ fontSize: 13, color: 'var(--on-surface-muted)' }}>
-              {(thread.profiles as any)?.full_name} · {fmtDate(thread.created_at)}
+              {(thread.profiles as any)?.full_name} Â· {fmtDate(thread.created_at)}
             </div>
           </div>
 
@@ -131,7 +131,7 @@ export default function DoubtsPage() {
                   {i === 0 && <span className="badge badge-lime" style={{ marginBottom: 'var(--sp-3)', display: 'inline-flex' }}><CheckCircle size={11} /> Best Answer</span>}
                   <p style={{ fontSize: 14, lineHeight: 1.7, marginBottom: 'var(--sp-3)' }}>{r.body}</p>
                   <div style={{ fontSize: 12, color: 'var(--on-surface-muted)' }}>
-                    {(r.profiles as any)?.full_name} · {fmtDate(r.created_at)}
+                    {(r.profiles as any)?.full_name} Â· {fmtDate(r.created_at)}
                   </div>
                 </div>
                 <button onClick={() => upvote(r.id)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius-md)', padding: 'var(--sp-2)', background: 'var(--surface-low)', cursor: 'pointer', marginLeft: 'var(--sp-4)', flexShrink: 0 }}>
@@ -146,9 +146,9 @@ export default function DoubtsPage() {
           {user && !isBlocked && (
             <div className="glass-card" style={{ padding: 'var(--sp-5)', marginTop: 'var(--sp-5)' }}>
               <label>Your Answer</label>
-              <textarea className="input" rows={4} value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Share your knowledge…" style={{ marginTop: 6, marginBottom: 'var(--sp-4)' }} />
+              <textarea className="input" rows={4} value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="Share your knowledgeâ€¦" style={{ marginTop: 6, marginBottom: 'var(--sp-4)' }} />
               <button className="btn btn-primary" onClick={postReply} disabled={posting || !replyText.trim()}>
-                <Send size={15} /> {posting ? 'Posting…' : 'Post Reply'}
+                <Send size={15} /> {posting ? 'Postingâ€¦' : 'Post Reply'}
               </button>
             </div>
           )}
@@ -169,7 +169,7 @@ export default function DoubtsPage() {
       <section style={{ background: 'linear-gradient(135deg, var(--surface-mid) 0%, var(--primary-light) 100%)', paddingBlock: 'var(--sp-10)' }}>
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--sp-4)' }}>
           <div>
-            <h1 style={{ fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: 'var(--sp-2)' }}>💬 Doubt Forum</h1>
+            <h1 style={{ fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: 'var(--sp-2)' }}>ðŸ’¬ Doubt Forum</h1>
             <p style={{ color: 'var(--on-surface-muted)' }}>Ask anything. JSS students answer.</p>
           </div>
           {user ? (
@@ -201,7 +201,7 @@ export default function DoubtsPage() {
             Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 140, borderRadius: 'var(--radius-lg)', marginBottom: 'var(--sp-4)' }} />)
           ) : doubts.length === 0 ? (
             <div className="glass-card" style={{ padding: 'var(--sp-12)', textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 'var(--sp-4)' }}>🤔</div>
+              <div style={{ fontSize: 48, marginBottom: 'var(--sp-4)' }}>ðŸ¤”</div>
               <h3>No doubts yet</h3>
               <p style={{ color: 'var(--on-surface-muted)' }}>Be the first to ask something!</p>
             </div>
@@ -217,7 +217,7 @@ export default function DoubtsPage() {
               <p style={{ fontSize: 14, color: 'var(--on-surface-muted)', lineHeight: 1.6, marginBottom: 'var(--sp-4)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{d.body}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', fontSize: 13, color: 'var(--on-surface-muted)' }}>
                 <span>{(d.profiles as any)?.full_name}</span>
-                <span>·</span><span>{fmtDate(d.created_at)}</span>
+                <span>Â·</span><span>{fmtDate(d.created_at)}</span>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--sp-3)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><MessageCircle size={14} />{(d.doubt_replies as any)?.[0]?.count ?? 0}</span>
                 </div>
@@ -229,13 +229,13 @@ export default function DoubtsPage() {
         {/* Sidebar */}
         <aside className="sidebar-col" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)', position: 'sticky', top: 80 }}>
           <div className="glass-card" style={{ padding: 'var(--sp-5)' }}>
-            <div style={{ fontWeight: 700, marginBottom: 'var(--sp-3)' }}>💡 How It Works</div>
+            <div style={{ fontWeight: 700, marginBottom: 'var(--sp-3)' }}>ðŸ’¡ How It Works</div>
             <div style={{ fontSize: 13, color: 'var(--on-surface-muted)', lineHeight: 1.7 }}>
-              Post a doubt → peers answer → upvote the best reply → mark it accepted → reply author gets +5 karma.
+              Post a doubt â†’ peers answer â†’ upvote the best reply â†’ mark it accepted â†’ reply author gets +5 karma.
             </div>
           </div>
           <div className="glass-card" style={{ padding: 'var(--sp-5)' }}>
-            <div style={{ fontWeight: 700, marginBottom: 'var(--sp-4)' }}>🔥 Most Active</div>
+            <div style={{ fontWeight: 700, marginBottom: 'var(--sp-4)' }}>ðŸ”¥ Most Active</div>
             {doubts.filter(d => d.status === 'open').slice(0, 3).map(d => (
               <Link key={d.id} to={`/doubts/${d.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 'var(--sp-3)' }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{d.title}</div>
@@ -256,7 +256,7 @@ export default function DoubtsPage() {
               <div>
                 <label>Subject</label>
                 <select className="input" value={ndSubject} onChange={e => setNdSubject(e.target.value)} style={{ marginTop: 6 }}>
-                  <option value="">Select subject…</option>
+                  <option value="">Select subjectâ€¦</option>
                   {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
@@ -266,12 +266,12 @@ export default function DoubtsPage() {
               </div>
               <div>
                 <label>Body</label>
-                <textarea className="input" rows={4} value={ndBody} onChange={e => setNdBody(e.target.value)} placeholder="Describe your doubt in detail…" style={{ marginTop: 6 }} />
+                <textarea className="input" rows={4} value={ndBody} onChange={e => setNdBody(e.target.value)} placeholder="Describe your doubt in detailâ€¦" style={{ marginTop: 6 }} />
               </div>
               <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
                 <button className="btn btn-ghost" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setNewDoubt(false)}>Cancel</button>
                 <button className="btn btn-gold" style={{ flex: 1, justifyContent: 'center' }} onClick={submitDoubt} disabled={posting || !ndTitle.trim() || !ndBody.trim()}>
-                  {posting ? 'Posting…' : 'Post Doubt'}
+                  {posting ? 'Postingâ€¦' : 'Post Doubt'}
                 </button>
               </div>
             </div>
@@ -284,3 +284,4 @@ export default function DoubtsPage() {
     </AnimatedPage>
   )
 }
+
