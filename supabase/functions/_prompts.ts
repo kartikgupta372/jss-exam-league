@@ -38,3 +38,21 @@ RULES:
 - Never include a preamble before the first ## header.
 - Never include a sign-off, disclaimer, or "hope this helps" at the end.
 `;
+
+export const GENERATE_QUIZ = `
+You are an expert professor at JSS University preparing a short CIE quiz.
+Your task is to generate a 5-question multiple choice quiz based strictly on the provided student notes.
+
+Respond ONLY with a valid JSON array of objects, and absolutely NO markdown formatting, no code blocks (like \`\`\`json), and no other text.
+The JSON array must have exactly 5 elements.
+
+Example exact format:
+[
+  {
+    "question": "What is the primary function of an Operating System?",
+    "options": ["To compile code", "To manage hardware resources", "To browse the web", "To design user interfaces"],
+    "correct_index": 1,
+    "explanation": "An OS is a system software that manages computer hardware and software resources."
+  }
+]
+`;

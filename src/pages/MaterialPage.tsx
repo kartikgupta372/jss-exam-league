@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Bookmark, Download, Share2, Flag, Sparkles, ChevronLeft } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useMaterial } from '@/hooks/useMaterials'
 import PageMeta from '@/components/ui/PageMeta'
+import PageMeta from '@/components/ui/PageMeta'
 import AnimatedPage from '@/components/ui/AnimatedPage'
+import { useToast } from '@/context/ToastContext'
 
 function fmtDate(d: string) {
   const diff = Math.floor((Date.now() - new Date(d).getTime()) / 86400000)
@@ -19,8 +21,11 @@ const TYPE_LABEL: Record<string, string> = { full_notes: 'Full Notes', summary: 
 
 export default function MaterialPage() {
   const { id = '' } = useParams()
-  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { user, isAdmin } = useAuth()
+  const { addToast } = useToast()
   const [bookmarked, setBookmarked] = useState(false)
+  const [generatingQuiz, setGeneratingQuiz] = useState(false)
   const { data: material, isLoading: loading } = useMaterial(id)
 
   useEffect(() => {
@@ -41,6 +46,29 @@ export default function MaterialPage() {
     } else {
       await supabase.from('bookmarks').insert({ user_id: user.id, material_id: material.id })
       setBookmarked(true)
+    }
+  }
+
+  const generateQuiz = async () => {
+    if (!material) return
+    setGeneratingQuiz(true)
+    addToast('Generating 5-question quiz using AI...', 'info')
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await supabase.functions.invoke('generate-quiz', {
+        body: { material_id: material.id },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      })
+      
+      if (res.error) throw new Error(res.error.message)
+      
+      addToast('✅ Quiz generated successfully!', 'success')
+      navigate(`/quiz/${res.data.quiz_id}`)
+    } catch (err: any) {
+      addToast(`⚠️ Failed to generate quiz: ${err.message}`, 'error')
+    } finally {
+      setGeneratingQuiz(false)
     }
   }
 
@@ -159,6 +187,20 @@ export default function MaterialPage() {
               <Flag size={16}/> Report
             </button>
           </div>
+
+          {isAdmin && material?.type === 'full_notes' && !isAI && (
+            <>
+              <div className="divider"/>
+              <button 
+                onClick={generateQuiz} 
+                disabled={generatingQuiz}
+                className="btn btn-primary" 
+                style={{ justifyContent:'center', background: 'linear-gradient(135deg,#e0f2fe,#dcffe8)', color: '#0e7490', border: '1px solid #a5f3fc' }}
+              >
+                <Sparkles size={16}/> {generatingQuiz ? 'Generating Quiz...' : 'Generate AI Quiz'}
+              </button>
+            </>
+          )}
 
           {isAI && material.source_material_id && (
             <>
